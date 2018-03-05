@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Ensure right ownership.
+chmod -R 775 /data/bind
+chown -R root:bind /data/bind
+
+# Copy configuration files.
+cp /archivos/* /etc/bind/
+
+echo "Starting named..."
+mkdir -m 0775 -p /var/run/named
+chown root:bind /var/run/named
+touch /var/log/query.log
+chown bind /var/log/query.log
+exec /usr/sbin/named -u bind -g

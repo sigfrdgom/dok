@@ -1,0 +1,77 @@
+FROM        debian:stretch
+
+MAINTAINER gg13008@ues.edu.sv
+
+#variables de entorno
+
+# actualizando sistema
+
+RUN         apt-get update && \
+            apt-get install -y bind9 net-tools dnsutils nano && \
+            rm -rf /var/lib/apt/lists/*
+
+# Installando glassfish
+RUN     cd /opt/ && \
+	wget http://download.java.net/glassfish/4.1/release/glassfish-4.1.zip && \
+	 unzip glassfish-4.1.zip && \
+        rm glassfish-4.1.zip &&\ 
+    echo "--- Setup the password file ---" && \
+    echo "AS_ADMIN_PASSWORD=" > /tmp/glassfishpwd && \
+    echo "AS_ADMIN_NEWPASSWORD=${PASSWORD}" >> /tmp/glassfishpwd  && \
+    echo "--- Enable DAS, change admin password, and secure admin access ---" && \
+    glassfish4/bin/asadmin --user=admin --passwordfile=/tmp/glassfishpwd change-admin-password --domain_name domain1 && \
+    glassfish4/bin/asadmin start-domain && \
+    echo "AS_ADMIN_PASSWORD=${PASSWORD}" > /tmp/glassfishpwd && \
+    glassfish4/bin/asadmin --user=admin --passwordfile=/tmp/glassfishpwd enable-secure-admin && \
+    glassfish4/bin/asadmin --user=admin stop-domain && rm /tmp/glassfishpwd
+ 
+#Haciendo el pool de conexiones y el jdbc resources con asadmin [magic lines] 
+
+COPY mariadb-java-client-1.5.8.jar /opt/glassfish4/glassfish/lib
+
+EXPOSE      8080 4848 8181
+
+WORKDIR    /opt/glassfish4/bin/
+
+# Este sera el punto de entrada
+CMD         /opt/glassfish4/bin/asadmin start-domain --verbose
+
+ 
+ 
+ 
+
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     dns1.tamales.com.  gg13008.ues.edu.sv (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      dns1.tamales.com.
+dns1    IN      A       192.168.122.34
+
+
+
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+zone "tamales.com." {
+        type master ;
+        file "/etc/bind/db.tamales" ;
+} ;
+
+
+zone "tamales.com." { type master ; file "/etc/bind/db.tamales" ; };
+
+
+docker run --name dnsserver -d -p 53:53/udp -p 53:53 dnsserver
+
+
